@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'UploadQP',
     'Student',
     'Evaluate',
+    'ragpipe',
 ]
 
 MIDDLEWARE = [

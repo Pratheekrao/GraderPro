@@ -21,5 +21,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('upload/', include('UploadQP.urls')),
     path('evaluate/', include('Evaluate.urls')),
+    path('rag/', include('ragpipe.urls')),
+
 
 ]
