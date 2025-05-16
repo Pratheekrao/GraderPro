@@ -1,0 +1,81 @@
+import os
+import base64
+from dotenv import load_dotenv
+from groq import Groq
+
+os.environ['GROQ_API_KEY'] = "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"
+load_dotenv()
+client = Groq()
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+
+
+# ----------------------------------
+# Encode image as base64 for API
+# ----------------------------------
+def encode_image(image_path):
+    if not os.path.isfile(image_path):
+        raise FileNotFoundError(f"Image not found: {image_path}")
+    with open(image_path, "rb") as f:
+        return base64.b64encode(f.read()).decode("utf-8")
+
+# ----------------------------------
+# Extract and format visible text using Groq vision model
+# ----------------------------------
+def extract_text_from_images(image_paths):
+    base64_images = []
+    for path in image_paths:
+        base64_images.append(encode_image(path))
+
+    prompt = (
+    "Extract only the visible text from these images, and organize it by question number.\n"
+    "- Identify each question based on its number (e.g., Q1, 1., 2., etc.).\n"
+    "- Group each answer under its respective question number using clear headings like 'Question 1:', 'Question 2:', etc.\n"
+    "- Do NOT generate or assume any new content—only extract what's actually visible in the image.\n"
+    "- Correct any spelling mistakes.\n"
+    "- Preserve logical structure (e.g., headings, bullet points, tables, equations) within each answer.\n"
+    "- Use clean and consistent formatting so the output is both human-readable and machine-readable.\n"
+    "- Ignore decorative elements, arrows, or icons unless they contain actual text.\n"
+    "- Ensure each answer appears immediately after its corresponding question number."
+    )
+
+    message_content = [{"type": "text", "text": prompt}]
+    for base64_img in base64_images:
+        message_content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/png;base64,{base64_img}"}
+        })
+
+    response = client.chat.completions.create(
+        model="meta-llama/llama-4-scout-17b-16e-instruct",
+        messages=[{"role": "user", "content": message_content}],
+        temperature=0.2,
+        max_completion_tokens=2048,
+        top_p=1,
+        stream=False
+    )
+
+    extracted_text = response.choices[0].message.content
+    return extracted_text
+
+# ----------------------------------
+# Example usage
+# ----------------------------------
+if __name__ == "__main__":
+    image_paths = [
+        "image1.jpeg",
+        "image2.jpeg",
+        "image3.jpeg",
+        "image4.jpeg",
+        "image5.jpeg"
+    ]
+
+    print("🔍 Extracting text from images...")
+
+    try:
+        result = extract_text_from_images(image_paths)
+        print("\n📄 Extracted Text:\n")
+        print(result)
+    except Exception as e:
+        print(f"❌ Error: {e}")
