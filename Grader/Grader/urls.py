@@ -22,6 +22,7 @@ urlpatterns = [
     path('upload/', include('UploadQP.urls')),
     path('evaluate/', include('Evaluate.urls')),
     path('rag/', include('ragpipe.urls')),
+    path('imgeval/', include('ImageEval.urls')),
 
 
 ]

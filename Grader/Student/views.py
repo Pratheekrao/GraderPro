@@ -13,7 +13,7 @@ MONGO_URI = "mongodb://localhost:27017"
 client = MongoClient(MONGO_URI)
 
 # MongoDB setup
-db = client['student_db']
+db = client['GraderPro']
 collection = db['students']
 
 # Validate USN format
