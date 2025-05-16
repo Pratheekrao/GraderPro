@@ -23,6 +23,13 @@ def upload_question_paper_json(request):
         if not isinstance(questions, list):
             return JsonResponse({'error': 'Questions must be a list.'}, status=400)
 
+        # Get exam_type and subject fields
+        exam_type = request.POST.get('exam_type')
+        subject = request.POST.get('subject')
+
+        if not exam_type or not subject:
+            return JsonResponse({'error': 'Missing exam_type or subject field.'}, status=400)
+
         processed_questions = []
 
         for q in questions:
@@ -33,24 +40,15 @@ def upload_question_paper_json(request):
             if not all([qno is not None, question_text]):
                 return JsonResponse({'error': f'Missing fields in question {qno}.'}, status=400)
 
-            # Try to get image from files
-            image_file = request.FILES.get(f'image_{qno}')
-            image_data = None
-            if image_file:
-                image_data = {
-                    'filename': image_file.name,
-                    'content_type': image_file.content_type,
-                    'data': Binary(image_file.read())
-                }
-
             processed_questions.append({
                 'qno': qno,
                 'question': question_text,
-                'diagram': diagram,
-                'image': image_data
+                'diagram': diagram
             })
 
         result = question_papers_collection.insert_one({
+            'exam_type': exam_type,
+            'subject': subject,
             'questions': processed_questions
         })
 
