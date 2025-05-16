@@ -2,6 +2,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 import pymongo
+from bson import Binary
 import json
 
 client = pymongo.MongoClient('mongodb://localhost:27017/')
@@ -38,9 +39,20 @@ def upload_question_paper_json(request):
             if not all([qno is not None, question_text]):
                 return JsonResponse({'error': f'Missing fields in question {qno}.'}, status=400)
 
+            # Get image file (if exists) for this question
+            image_file = request.FILES.get(f'image_{qno}')
+            image_data = None
+            if image_file:
+                image_data = {
+                    'filename': image_file.name,
+                    'content_type': image_file.content_type,
+                    'data': Binary(image_file.read())
+                }
+
             processed_questions.append({
                 'qno': qno,
-                'question': question_text
+                'question': question_text,
+                'image': image_data
             })
 
         result = question_papers_collection.insert_one({
