@@ -1,0 +1,97 @@
+import pickle
+import numpy as np
+from sentence_transformers import SentenceTransformer
+from groq import Groq
+import os
+from dotenv import load_dotenv
+
+# Load API key from .env
+load_dotenv()
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+
+# Load embedding model
+embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+
+# Load FAISS index and associated data
+def load_faiss_data(pkl_path):
+    with open(pkl_path, "rb") as f:
+        data = pickle.load(f)
+    return data
+
+# Query the FAISS index and return top-k context
+def query_faiss_index_for_context(query, data, top_k=5):
+    index = data["index"]
+    pages = data["pages"]
+    
+    query_embedding = embedding_model.encode([query])
+    D, I = index.search(np.array(query_embedding), top_k)
+
+    context_snippets = []
+    for idx in I[0]:
+        page = pages[idx]
+        context_snippets.append(f"[Page {page['page_number']}]: {page['text']}")
+    
+    return "\n\n".join(context_snippets)
+
+# Groq grading function
+def grade_student_answer(question, student_answer, context, model="llama-3.3-70b-versatile"):
+    print(context)
+    prompt = f"""
+You are a knowledgeable and conservative examiner.
+
+Below is a student's answer to a question. You are provided with relevant excerpts from a textbook to assist your evaluation, but you may also use your own understanding and general knowledge to assess the accuracy and completeness of the student's response.
+
+Grade the student's answer on a scale of 1 to 5, where:
+- 1 = Very poor (mostly incorrect or irrelevant)
+- 2 = Poor (some relevant points, but largely inaccurate)
+- 3 = Fair (some correct ideas but lacks depth or clarity)
+- 4 = Good (mostly correct with reasonable explanation)
+- 5 = Excellent (accurate, complete, and well-articulated)
+
+Be conservative in your evaluation and provide a brief justification.
+
+### Textbook Context:
+{context}
+
+### Question:
+{question}
+
+### Student's Answer:
+{student_answer}
+
+Now, grade the answer.
+
+Respond strictly in the following format:
+Score: <number>
+Explanation: <short reasoning>
+"""
+    client = Groq()
+    completion = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": "You are a knowledgeable and conservative examiner."},
+            {"role": "user", "content": prompt},
+        ],
+        temperature=1,
+        max_completion_tokens=1024,
+        top_p=1,
+        stream=False
+    )
+
+    return completion.choices[0].message.content
+
+# Main interface function
+def evaluate_answer_with_context(faiss_data_path, question, student_answer, top_k=5):
+    data = load_faiss_data(faiss_data_path)
+    context = query_faiss_index_for_context(question, data, top_k=top_k)
+    result = grade_student_answer(question, student_answer, context)
+    print("🔍 Evaluation Result:\n")
+    print(result)
+
+# === Example Usage ===
+if __name__ == "__main__":
+    question = "Explain the concept of a semaphore in operating systems?"
+    student_answer = "A semaphore is a variable used to control access to a common resource in a parallel programming environment. It helps in process synchronization."
+
+    evaluate_answer_with_context("my_faiss_data.pkl", question, student_answer)
