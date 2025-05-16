@@ -16,6 +16,8 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+GROQ_API_KEY="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"
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
@@ -38,7 +40,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'UploadQP',
-    'UploadScript',
+    'Student',
+    'Evaluate',
 ]
 
 MIDDLEWARE = [
