@@ -1,0 +1,116 @@
+import base64
+from groq import Groq
+import os
+from dotenv import load_dotenv
+
+
+os.environ['GROQ_API_KEY'] = "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"
+load_dotenv()
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+client = Groq()
+
+# Utility function to encode image to base64
+def encode_image(image_path):
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode("utf-8")
+
+# -------------------------------
+# STAGE 1: Reference Diagram to Text Description
+# -------------------------------
+def generate_reference_description(reference_image_path):
+    base64_image = encode_image(reference_image_path)
+
+    completion = client.chat.completions.create(
+        model="meta-llama/llama-4-scout-17b-16e-instruct",
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Describe this diagram in detail. Mention all key components, labels, and structure."},
+                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64_image}"}}
+                ]
+            }
+        ],
+        temperature=1,
+        max_completion_tokens=1024,
+        top_p=1,
+        stream=False,
+    )
+    ref_description = completion.choices[0].message.content
+    print(ref_description)
+    return ref_description
+
+# -------------------------------
+# STAGE 2: Evaluate Set of Student Pages
+# -------------------------------
+def evaluate_student_diagrams(student_image_paths, reference_description):
+    images = [{"type": "image_url", "image_url": {"url": f"data:image/png;base64,{encode_image(path)}"}} for path in student_image_paths]
+
+    prompt = f"""
+Reference Description:
+{reference_description}
+
+You are an expert AI diagram evaluator. A student has submitted 5 pages. Your task is to:
+1. **Identify the page that contains the diagram** (only one page will have it).
+2. **Strictly evaluate** that diagram against the reference description.
+
+🎯 Focus only on:
+- The **presence**, **structure**, and **correctness** of the core components mentioned in the reference
+- Logical layout and accurate connections between key elements (arrows, flows, blocks, interactions, etc.)
+- Correct and complete labeling of diagram parts
+
+🚫 Do NOT consider:
+- Pages that don’t have the diagram
+- Handwriting, drawing style, or visual quality unless it causes misunderstanding
+- Decorative or presentational differences
+
+📉 Scoring Instructions:
+Be **conservative** in your grading. Deduct points for any missing, extra, misaligned, or mislabeled elements.
+Only give a perfect score when the diagram **fully matches** the description with **no omissions or structural errors**.
+
+🔢 Rounding:
+All scores must be **rounded up to the nearest whole number** (e.g., 3.1 → 4). Do not give decimals.
+
+📊 Output Format (Important for automated parsing):
+Return your response in the following format exactly:
+
+Correctness: <1-5>
+Completeness: <1-5>
+Labeling: <1-5>
+Final Score: <1-5>
+
+Summary:
+<One paragraph summary explaining your evaluation>
+"""
+
+    response = client.chat.completions.create(
+        model="meta-llama/llama-4-scout-17b-16e-instruct",
+        messages=[
+            {
+                "role": "user",
+                "content": [{"type": "text", "text": prompt}] + images
+            }
+        ],
+        temperature=1,
+        max_completion_tokens=1024,
+        top_p=1,
+        stream=False,
+    )
+
+    return response.choices[0].message.content
+
+# -------------------------------
+# 🚀 Example Usage
+# -------------------------------
+reference_description = generate_reference_description("teacher_diagram.jpeg")
+
+student_pages = [
+    "image1.jpeg",
+    "image2.jpeg",
+    "image3.jpeg",
+    "image4.jpeg",
+    "image5.jpeg"
+]
+
+evaluation_result = evaluate_student_diagrams(student_pages, reference_description)
+print("\nStudent Diagram Evaluation:\n", evaluation_result)
