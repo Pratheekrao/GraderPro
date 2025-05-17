@@ -23,6 +23,8 @@ urlpatterns = [
     path('evaluate/', include('Evaluate.urls')),
     path('rag/', include('ragpipe.urls')),
     path('imgeval/', include('ImageEval.urls')),
+    path('imageto/', include('imgtotext.urls')),
+
 
 
 ]
