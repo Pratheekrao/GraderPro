@@ -28,7 +28,6 @@ def evaluate_answer(request):
         answer = q.get('answer')
         total_marks = total
 
-        print([question, answer, total_marks])
         if not all([question, answer, total_marks]):
             results.append({
                 'index': idx,

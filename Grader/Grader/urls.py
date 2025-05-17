@@ -21,6 +21,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('upload/', include('UploadQP.urls')),
     path('evaluate/', include('Evaluate.urls')),
+    path('student/', include('Student.urls')),
     path('rag/', include('ragpipe.urls')),
     path('imgeval/', include('ImageEval.urls')),
     path('imageto/', include('imgtotext.urls')),

@@ -80,6 +80,8 @@ TEMPLATES = [
 WSGI_APPLICATION = 'Grader.wsgi.application'
 
 
+OTHER_APP_URL= 'http://127.0.0.1:8000/student/feedback/'
+
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 

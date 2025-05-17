@@ -18,7 +18,7 @@ collection = db['students']
 
 # Validate USN format
 def validate_usn(usn):
-    return re.match(r"^1RV22[A-Z]{3}\d+$", usn)
+    return re.match(r"^1RV22[A-Z]{2}\d+$", usn)
 
 # ---- Add or Get Paper (Image + Sem) ----
 @csrf_exempt
@@ -79,24 +79,33 @@ def add_or_get_feedback_marks(request):
             data = json.loads(request.body)
             usn = data['usn']
             subject = data['subject']
-            paper_type = data['paper_type']
-            marks = data['marks']
-            feedback = data['feedback']  # Must be JSON object
-
+            exam_type = data['exam_type']  # e.g., 'CIE' or 'SEE'
+            feedbacks = data.get('feedbacks', [])  # list of feedback dicts
+            
             if not validate_usn(usn):
                 return JsonResponse({'error': 'Invalid USN'}, status=400)
+            if not isinstance(feedbacks, list):
+                return JsonResponse({'error': 'feedbacks must be a list'}, status=400)
 
-            field_path = f"subject.{subject}.{paper_type}"
-
+            # Find if a document already exists with the same usn, subject, and exam_type
+            query = {
+                "usn": usn,
+                "subject": subject,
+                "exam_type": exam_type
+            }
+            
+            # Update or insert the document with the new feedbacks array
             update = {
                 "$set": {
-                    field_path + ".Marks": marks,
-                    field_path + ".feedback": feedback
+                    "usn": usn,
+                    "subject": subject,
+                    "exam_type": exam_type,
+                    "feedbacks": feedbacks
                 }
             }
-
-            collection.update_one({"usn": usn}, update, upsert=True)
-            return JsonResponse({"message": "Feedback and marks added"})
+            
+            collection.update_one(query, update, upsert=True)
+            return JsonResponse({"message": "Feedbacks added successfully"})
 
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
@@ -104,17 +113,23 @@ def add_or_get_feedback_marks(request):
     elif request.method == 'GET':
         usn = request.GET.get("usn")
         subject = request.GET.get("subject")
-        paper_type = request.GET.get("paper_type")
+        exam_type = request.GET.get("exam_type")
 
         if not validate_usn(usn):
             return JsonResponse({'error': 'Invalid USN'}, status=400)
 
-        student = collection.find_one({"usn": usn}, {"_id": 0})
-        if not student or "subject" not in student or subject not in student["subject"]:
+        # Find the document matching the query criteria
+        query = {
+            "usn": usn,
+            "subject": subject,
+            "exam_type": exam_type
+        }
+        
+        result = collection.find_one(query, {"_id": 0})
+        if not result:
             return JsonResponse({'error': 'Not found'}, status=404)
 
-        section = student["subject"][subject].get(paper_type, {})
+        # Return the feedbacks array
         return JsonResponse({
-            "marks": section.get("Marks"),
-            "feedback": section.get("feedback")
+            "feedbacks": result.get("feedbacks", [])
         })
