@@ -54,6 +54,7 @@ Answer: {answer}
 Evaluate this answer out of {total_marks} marks and justify the score. Be conservative in your scoring.
 Respond in JSON format:
 {{
+    "question": <question>,
     "score": <numeric_score>,
     "feedback": "<your_feedback>"
 }}
@@ -112,9 +113,11 @@ Respond in JSON format:
             result = json.loads(json_str)
             results.append({
                 'index': idx,
+                'question': question,
                 'score': result.get('score'),
                 'feedback': result.get('feedback')
             })
+
         except Exception as e:
             results.append({
                 'index': idx,

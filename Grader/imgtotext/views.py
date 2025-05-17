@@ -8,6 +8,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from groq import Groq
 from pymongo import MongoClient
+import json
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -122,8 +123,8 @@ def process_exam_images(request):
     exam_type = request.POST.get('exam_type')
     subject = request.POST.get('subject')
     image_files = request.FILES.getlist('images')
-    total=request.POST.get('total')
-    usn=request.POST.get('usn')
+    total = request.POST.get('total')
+    usn = request.POST.get('usn')
 
     if not exam_type or not subject:
         return JsonResponse({'error': 'Missing exam_type or subject'}, status=400)
@@ -145,7 +146,7 @@ def process_exam_images(request):
             'exam_type': exam_type,
             'subject': subject,
             'total': total,
-            'questions': refined_payload  # fixed typo here
+            'questions': refined_payload
         }
         
         logger.info(f"Payload prepared for forwarding: {payload}")
@@ -157,22 +158,42 @@ def process_exam_images(request):
             return JsonResponse({'error': 'Failed to notify other app', 'details': response_text}, status=status_code)
 
         logger.info("Processing and forwarding successful.")
+        print("########@#@$#@#")
         print(response_text)
 
-        # Assuming the response from the other app is a JSON stringstudet=
-
-        student_payload={
+        # Parse the response from the first app (assuming it's JSON)
+        try:
+            response_data = json.loads(response_text)
+        except json.JSONDecodeError:
+            logger.error("Failed to parse response as JSON")
+            response_data = {"results": []}
+        
+        # Format feedback in the expected structure
+        feedback_list = []
+        if isinstance(response_data, dict) and "results" in response_data:
+            for idx, item in enumerate(response_data.get("results", [])):
+                if isinstance(item, dict):
+                    feedback_list.append({
+                        "index": idx,
+                        "question": item.get("question", f"Question {idx+1}"),
+                        "feedback": item.get("feedback", ""),
+                        "score": item.get("score", 0),
+                        "total": total,
+                    })
+        
+        # Create the payload with the properly formatted feedback
+        student_payload = {
             'usn': usn,
             'subject': subject,
             'exam_type': exam_type,
-            'feedback'  : response_text,
+            'feedback': feedback_list,
         }
-        status,student_log=trigger_another_app2(student_payload)
+        
+        status, student_log = trigger_another_app2(student_payload)
     
-
-        if status_code != 200:
-            logger.error(f"Failed to notify other app, status: {status_code}, details: {response_text}")
-            return JsonResponse({'error': 'Failed to notify other app', 'details': response_text}, status=status_code)
+        if status != 200:
+            logger.error(f"Failed to notify student app, status: {status}, details: {student_log}")
+            return JsonResponse({'error': 'Failed to notify student app', 'details': student_log}, status=status)
         
         print(student_log)
 

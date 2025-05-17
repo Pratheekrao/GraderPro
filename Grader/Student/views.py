@@ -173,8 +173,25 @@ def add_or_get_feedback_marks(request):
             usn = data['usn']
             subject = data['subject']
             exam_type = data['exam_type']  # e.g., 'CIE' or 'SEE'
-            feedbacks = data.get('feedbacks', [])  # list of feedback dicts
             
+            # Get feedbacks from 'feedbacks' or 'results'
+            feedbacks_raw = data.get('feedback')
+# Only keep items that have 'question' and 'feedback'
+            feedbacks = [
+                {
+                    'qno': item.get('index', 0) + 1,
+                    'question': item['question'],
+                    'feedback': item['feedback'],
+                    'score': item.get('score', 0) ,
+                    'total': int(item.get('total', 0))
+                }
+                for item in feedbacks_raw
+                if 'question' in item and 'feedback' in item
+            ]
+
+            print("Processed Feedbacks >>>", feedbacks) # list of feedback dicts
+            print("&&&&&&&&&&&&&&&&&")
+            print(feedbacks)
             if not validate_usn(usn):
                 return JsonResponse({'error': 'Invalid USN'}, status=400)
             if not isinstance(feedbacks, list):
@@ -225,6 +242,6 @@ def add_or_get_feedback_marks(request):
         # Return the feedbacks array
         return JsonResponse({
 
-            "feedbacks": result.get("feedbacks", [])
+            "feedbacks": result.get("feedback", [])
         })
 
