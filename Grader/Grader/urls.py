@@ -24,8 +24,6 @@ urlpatterns = [
     path('student/', include('Student.urls')),
     path('rag/', include('ragpipe.urls')),
     path('imgeval/', include('ImageEval.urls')),
+    path('student/', include('Student.urls')),
     path('imageto/', include('imgtotext.urls')),
-
-
-
 ]

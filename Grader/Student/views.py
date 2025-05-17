@@ -7,6 +7,7 @@ from pymongo import MongoClient
 import base64
 import json
 import re
+import bcrypt
 
 # ✅ MongoDB Atlas URI (Replace this with your real URI)
 MONGO_URI = "mongodb://localhost:27017"
@@ -19,6 +20,98 @@ collection = db['students']
 # Validate USN format
 def validate_usn(usn):
     return re.match(r"^1RV22[A-Z]{2}\d+$", usn)
+
+@csrf_exempt
+def login(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST allowed'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        usn = data.get('usn')
+        password = data.get('password')
+    except (json.JSONDecodeError, KeyError):
+        return JsonResponse({'error': 'Invalid request format'}, status=400)
+
+    if not usn or not password:
+        return JsonResponse({'error': 'USN and password required'}, status=400)
+
+    if not validate_usn(usn):
+        return JsonResponse({'error': 'Invalid USN format'}, status=400)
+
+    # Find user and include password hash
+    student = collection.find_one({"usn": usn}, {"_id": 0, "password": 1})
+    if not student:
+        return JsonResponse({'error': 'User not found'}, status=404)
+
+    hashed_password = student.get("password")
+    if not bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8')):
+        return JsonResponse({'error': 'Incorrect password'}, status=401)
+
+    return JsonResponse({
+        "message": "Login successful",
+        "usn": usn
+    })
+
+@csrf_exempt
+def signup(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST allowed'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        usn = data.get('usn')
+        password = data.get('password')
+    except (json.JSONDecodeError, KeyError):
+        return JsonResponse({'error': 'Invalid request format'}, status=400)
+
+    # Basic validation
+    if not usn or not password:
+        return JsonResponse({'error': 'USN and password are required'}, status=400)
+
+    if not validate_usn(usn):
+        return JsonResponse({'error': 'Invalid USN format'}, status=400)
+
+    # Check if user already exists
+    if collection.find_one({"usn": usn}):
+        return JsonResponse({'error': 'USN already registered'}, status=409)
+
+    # Hash the password
+    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+    # Insert into MongoDB
+    collection.insert_one({
+        "usn": usn,
+        "password": hashed_password
+    })
+
+    return JsonResponse({"message": "Signup successful"}, status=201)
+
+@csrf_exempt
+def get_registered_subjects(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST allowed'}, status=405)
+    try:
+        data = json.loads(request.body)
+        usn = data.get('usn')
+
+        if not usn:
+            return JsonResponse({'error': 'USN is required'}, status=400)
+
+        if not validate_usn(usn):
+            return JsonResponse({'error': 'Invalid USN format'}, status=400)
+
+        student = collection.find_one({"usn": usn}, {"_id": 0, "subject": 1})
+
+        if not student or "subject" not in student:
+            return JsonResponse({'subjects': []})  # Return empty list if no subjects
+
+        subject_names = list(student["subject"].keys())
+
+        return JsonResponse({'subjects': subject_names})
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 # ---- Add or Get Paper (Image + Sem) ----
 @csrf_exempt
@@ -131,5 +224,7 @@ def add_or_get_feedback_marks(request):
 
         # Return the feedbacks array
         return JsonResponse({
+
             "feedbacks": result.get("feedbacks", [])
         })
+
