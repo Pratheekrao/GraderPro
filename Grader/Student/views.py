@@ -80,13 +80,15 @@ def add_or_get_feedback_marks(request):
             usn = data['usn']
             subject = data['subject']
             paper_type = data['paper_type']
+            qno = data['qno']
             marks = data['marks']
             feedback = data['feedback']  # Must be JSON object
 
             if not validate_usn(usn):
                 return JsonResponse({'error': 'Invalid USN'}, status=400)
 
-            field_path = f"subject.{subject}.{paper_type}"
+            # MongoDB path: subject.Math.Midterm.Q1.Marks / feedback
+            field_path = f"subject.{subject}.{paper_type}.{qno}"
 
             update = {
                 "$set": {
@@ -105,6 +107,7 @@ def add_or_get_feedback_marks(request):
         usn = request.GET.get("usn")
         subject = request.GET.get("subject")
         paper_type = request.GET.get("paper_type")
+        qno = request.GET.get("qno")
 
         if not validate_usn(usn):
             return JsonResponse({'error': 'Invalid USN'}, status=400)
@@ -114,7 +117,9 @@ def add_or_get_feedback_marks(request):
             return JsonResponse({'error': 'Not found'}, status=404)
 
         section = student["subject"][subject].get(paper_type, {})
+        question = section.get(qno, {})
+
         return JsonResponse({
-            "marks": section.get("Marks"),
-            "feedback": section.get("feedback")
+            "marks": question.get("Marks"),
+            "feedback": question.get("feedback")
         })
