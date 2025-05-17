@@ -30,6 +30,9 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 
+OTHER_DJANGO_APP_URL = 'http://127.0.0.1:8000/evaluate/script/'
+
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -43,6 +46,7 @@ INSTALLED_APPS = [
     'Student',
     'Evaluate',
     'ragpipe',
+    'imgtotext'
 ]
 
 MIDDLEWARE = [
