@@ -101,6 +101,19 @@ def trigger_another_app(payload):
         return 500, str(e)
 
 
+
+
+def trigger_another_app2(payload):
+    """POST extracted data to another Django app"""
+    try:
+        logger.info(f"Triggering other app at {settings.OTHER_APP_URL} with payload.")
+        response = requests.post(settings.OTHER_APP_URL, json=payload, timeout=10)
+        logger.info(f"Received response from other app: status {response.status_code}")
+        return response.status_code, response.text
+    except requests.RequestException as e:
+        logger.error(f"Error triggering other app: {e}")
+        return 500, str(e)
+
 @csrf_exempt
 def process_exam_images(request):
     if request.method != 'POST':
@@ -110,6 +123,7 @@ def process_exam_images(request):
     subject = request.POST.get('subject')
     image_files = request.FILES.getlist('images')
     total=request.POST.get('total')
+    usn=request.POST.get('usn')
 
     if not exam_type or not subject:
         return JsonResponse({'error': 'Missing exam_type or subject'}, status=400)
@@ -144,6 +158,24 @@ def process_exam_images(request):
 
         logger.info("Processing and forwarding successful.")
         print(response_text)
+
+        # Assuming the response from the other app is a JSON stringstudet=
+
+        student_payload={
+            'usn': usn,
+            'subject': subject,
+            'exam_type': exam_type,
+            'feedback'  : response_text,
+        }
+        status,student_log=trigger_another_app2(student_payload)
+    
+
+        if status_code != 200:
+            logger.error(f"Failed to notify other app, status: {status_code}, details: {response_text}")
+            return JsonResponse({'error': 'Failed to notify other app', 'details': response_text}, status=status_code)
+        
+        print(student_log)
+
         return JsonResponse({'message': 'Processing successful', 'forwarded_response': response_text})
 
     except Exception as e:
