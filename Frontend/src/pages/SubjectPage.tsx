@@ -30,7 +30,7 @@ const SubjectPage: React.FC = () => {
   // Generate dates based on paper types (for demo)
   const getDemoDate = (paperType: string): string => {
     const now = new Date();
-    if (paperType === 'CIE') {
+    if (paperType === 'Midterm') {
       return new Date(now.setMonth(now.getMonth() - 2)).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',

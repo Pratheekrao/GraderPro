@@ -6,7 +6,7 @@ import { Book } from 'lucide-react';
 interface SubjectData {
   subject: string;
   paperTypes: string[];
-  semts: string[];
+  sem: string;
 }
 
 const DashboardPage: React.FC = () => {
@@ -23,7 +23,7 @@ const DashboardPage: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        const response = await fetch('http://localhost:8000/students/subjects/', {
+        const response = await fetch('http://localhost:8000/student/subjects/', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -37,11 +37,10 @@ const DashboardPage: React.FC = () => {
 
         const data = await response.json();
 
-        // Map the array of subject names to full SubjectData objects with empty arrays for paperTypes and semts
         const subjectList: SubjectData[] = data.subjects.map((subject: string) => ({
           subject,
-          paperTypes: [], // TODO: update with real data if available
-          semts: [],      // TODO: update with real data if available
+          paperTypes: [],
+          sem: '',
         }));
 
         setSubjects(subjectList);
@@ -95,39 +94,6 @@ const DashboardPage: React.FC = () => {
             </p>
           </div>
         )}
-      </section>
-
-      <section className="mt-12">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-slate-900">Recent Activity</h2>
-        </div>
-
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
-          <div className="flex justify-center items-center py-8">
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-primary-100 mb-4">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6 text-primary-600"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-slate-900">Welcome to GraderPro</h3>
-              <p className="mt-2 text-sm text-slate-500">
-                View your exam papers, check marks, and read feedback from your instructors.
-              </p>
-            </div>
-          </div>
-        </div>
       </section>
     </div>
   );

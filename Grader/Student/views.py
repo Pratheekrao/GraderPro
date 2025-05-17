@@ -23,6 +23,13 @@ def validate_usn(usn):
 
 @csrf_exempt
 def login(request):
+
+    MONGO_URI = "mongodb://localhost:27017"
+    client = MongoClient(MONGO_URI)
+
+# MongoDB setup
+    db = client['GraderPro']
+    collection = db['Login']
     if request.method != 'POST':
         return JsonResponse({'error': 'Only POST allowed'}, status=405)
 
@@ -55,6 +62,13 @@ def login(request):
 
 @csrf_exempt
 def signup(request):
+
+    MONGO_URI = "mongodb://localhost:27017"
+    client = MongoClient(MONGO_URI)
+
+# MongoDB setup
+    db = client['GraderPro']
+    collection = db['Login']
     if request.method != 'POST':
         return JsonResponse({'error': 'Only POST allowed'}, status=405)
 
@@ -87,31 +101,81 @@ def signup(request):
 
     return JsonResponse({"message": "Signup successful"}, status=201)
 
+
 @csrf_exempt
 def get_registered_subjects(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Only POST allowed'}, status=405)
     try:
-        data = json.loads(request.body)
-        usn = data.get('usn')
-
+        # Parse request body
+        try:
+            data = json.loads(request.body)
+            usn = data.get('usn')
+            print(f"Received USN: {usn}")
+        except json.JSONDecodeError as e:
+            print(f"JSON decode error: {e}")
+            return JsonResponse({'error': 'Invalid JSON in request body'}, status=400)
+            
         if not usn:
             return JsonResponse({'error': 'USN is required'}, status=400)
 
         if not validate_usn(usn):
             return JsonResponse({'error': 'Invalid USN format'}, status=400)
-
-        student = collection.find_one({"usn": usn}, {"_id": 0, "subject": 1})
-
-        if not student or "subject" not in student:
-            return JsonResponse({'subjects': []})  # Return empty list if no subjects
-
-        subject_names = list(student["subject"].keys())
-
-        return JsonResponse({'subjects': subject_names})
+        
+        # Connect to MongoDB
+        MONGO_URI = "mongodb://localhost:27017"
+        client = MongoClient(MONGO_URI)
+        db = client['GraderPro']
+        collection = db['students']
+        
+        # Find all records for this student
+        student_records = list(collection.find({"usn": usn}))
+        print(f"Found {len(student_records)} records for USN: {usn}")
+        
+        if not student_records:
+            return JsonResponse({'subjects': []})  # Empty subjects array
+        
+        # Group by subject and collect exam types
+        subject_data = {}
+        for record in student_records:
+            if "subject" in record and record["subject"]:
+                subject_name = record["subject"]
+                exam_type = record.get("exam_type", "Unknown")
+                
+                if subject_name not in subject_data:
+                    # Initialize subject data structure
+                    subject_data[subject_name] = {
+                        "subject": subject_name,
+                        "sem": "1",  # Default value, adjust if you have semester info
+                        "paperTypes": []
+                    }
+                
+                # Add exam type if it doesn't exist already
+                if exam_type not in subject_data[subject_name]["paperTypes"]:
+                    subject_data[subject_name]["paperTypes"].append(exam_type)
+        
+        # Extract simple subject names for DashboardPage
+        subject_names = list(subject_data.keys())
+        
+        # Convert subject_data to list for SubjectPage
+        subjects_with_details = list(subject_data.values())
+        
+        # The response format that works for both components
+        response_data = {
+            'subjects': subject_names,
+            'subjectsData': subjects_with_details
+        }
+        
+        print(f"Response data: {response_data}")
+        return JsonResponse(response_data)
 
     except Exception as e:
+        print(f"Error in get_registered_subjects: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return JsonResponse({'error': str(e)}, status=500)
+
+
 
 # ---- Add or Get Paper (Image + Sem) ----
 @csrf_exempt
@@ -181,6 +245,7 @@ def add_or_get_feedback_marks(request):
                 {
                     'qno': item.get('index', 0) + 1,
                     'question': item['question'],
+                    'answer': item['answer'],
                     'feedback': item['feedback'],
                     'score': item.get('score', 0) ,
                     'total': int(item.get('total', 0))
@@ -189,9 +254,7 @@ def add_or_get_feedback_marks(request):
                 if 'question' in item and 'feedback' in item
             ]
 
-            print("Processed Feedbacks >>>", feedbacks) # list of feedback dicts
-            print("&&&&&&&&&&&&&&&&&")
-            print(feedbacks)
+           
             if not validate_usn(usn):
                 return JsonResponse({'error': 'Invalid USN'}, status=400)
             if not isinstance(feedbacks, list):

@@ -70,7 +70,7 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     setUsnError('');
 
-    const usnPattern = /^1RV22[A-Z]{3}\d+$/;
+    const usnPattern = /^1RV22[A-Z]{2}\d+$/;
     if (!usnPattern.test(usn)) {
       setUsnError('Invalid USN format. Format should be 1RV22XXXNNN');
       return;
@@ -149,7 +149,7 @@ const LoginPage: React.FC = () => {
                 </div>
               )}
               <p className="mt-2 text-xs text-slate-500">
-                Enter your USN in the format 1RV22XXXNNN (e.g., 1RV22CS123)
+                Enter your USN in the format 1RV22XXNNN (e.g., 1RV22CS123)
               </p>
             </div>
 

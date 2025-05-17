@@ -158,28 +158,63 @@ def process_exam_images(request):
             return JsonResponse({'error': 'Failed to notify other app', 'details': response_text}, status=status_code)
 
         logger.info("Processing and forwarding successful.")
-        print("########@#@$#@#")
-        print(response_text)
+        logger.info(f"Response text: {response_text}")
 
         # Parse the response from the first app (assuming it's JSON)
         try:
             response_data = json.loads(response_text)
-        except json.JSONDecodeError:
-            logger.error("Failed to parse response as JSON")
+            logger.info(f"Parsed response data: {response_data}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse response as JSON: {e}")
             response_data = {"results": []}
         
         # Format feedback in the expected structure
         feedback_list = []
+        
+        # Check if we have the refined_payload and response_data to work with
         if isinstance(response_data, dict) and "results" in response_data:
-            for idx, item in enumerate(response_data.get("results", [])):
-                if isinstance(item, dict):
-                    feedback_list.append({
-                        "index": idx,
-                        "question": item.get("question", f"Question {idx+1}"),
-                        "feedback": item.get("feedback", ""),
-                        "score": item.get("score", 0),
-                        "total": total,
-                    })
+            results = response_data.get("results", [])
+            
+            for idx, result in enumerate(results):
+                if not isinstance(result, dict):
+                    continue
+                
+                # Find corresponding question from refined_payload if possible
+                question_data = None
+                qno = result.get("qno", idx + 1)
+                
+                for q in refined_payload:
+                    if q.get("qno") == qno:
+                        question_data = q
+                        break
+                
+                # Get answer from question_data if available
+                answer = ""
+                if question_data and "answer" in question_data:
+                    if isinstance(question_data["answer"], list):
+                        answer = " ".join(question_data["answer"])
+                    else:
+                        answer = str(question_data["answer"])
+                
+                # Get question text
+                question_text = result.get("question", "")
+                if not question_text and question_data:
+                    question_text = question_data.get("question", f"Question {qno}")
+                
+                # Create feedback item with all required fields
+                feedback_item = {
+                    "index": idx,
+                    "qno": qno,
+                    "question": question_text,
+                    "answer": result.get("answer", answer),  # Use answer from result or from question_data
+                    "feedback": result.get("feedback", ""),
+                    "score": float(result.get("score", 0)),  # Convert to float to handle decimal scores
+                    "total": int(result.get("total", total) if result.get("total") else total)  # Use question total or overall total
+                }
+                
+                feedback_list.append(feedback_item)
+        
+        logger.info(f"Generated feedback list: {feedback_list}")
         
         # Create the payload with the properly formatted feedback
         student_payload = {
@@ -189,16 +224,18 @@ def process_exam_images(request):
             'feedback': feedback_list,
         }
         
+        logger.info(f"Student payload: {student_payload}")
+        
         status, student_log = trigger_another_app2(student_payload)
     
         if status != 200:
             logger.error(f"Failed to notify student app, status: {status}, details: {student_log}")
             return JsonResponse({'error': 'Failed to notify student app', 'details': student_log}, status=status)
         
-        print(student_log)
+        logger.info(f"Student log: {student_log}")
 
         return JsonResponse({'message': 'Processing successful', 'forwarded_response': response_text})
 
     except Exception as e:
-        logger.exception("Unexpected error during processing")
+        logger.exception(f"Unexpected error during processing: {e}")
         return JsonResponse({'error': 'Unexpected error', 'details': str(e)}, status=500)
