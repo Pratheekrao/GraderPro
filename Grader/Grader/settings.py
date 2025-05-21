@@ -46,7 +46,8 @@ INSTALLED_APPS = [
     'Evaluate',
     'ragpipe',
     'imgtotext',
-    'corsheaders'
+    'corsheaders',
+    'ImageEval',
 ]
 
 MIDDLEWARE = [

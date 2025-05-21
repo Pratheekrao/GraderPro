@@ -26,4 +26,5 @@ urlpatterns = [
     path('imgeval/', include('ImageEval.urls')),
     path('student/', include('Student.urls')),
     path('imageto/', include('imgtotext.urls')),
+    path('imageeval/',include('ImageEval.urls')),
 ]

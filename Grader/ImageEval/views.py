@@ -18,7 +18,7 @@ def encode_image(file_obj):
 def diagram_evaluation_view(request):
     try:
         reference_image_file = request.FILES.get('reference_image')
-        student_image_file = request.FILES.get('student_image')
+        student_image_file = request.FILES.getlist('student_image')
 
         if not reference_image_file or not student_image_file:
             return JsonResponse({"error": "Both 'reference_image' and 'student_image' are required."}, status=400)

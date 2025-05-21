@@ -305,6 +305,6 @@ def add_or_get_feedback_marks(request):
         # Return the feedbacks array
         return JsonResponse({
 
-            "feedbacks": result.get("feedback", [])
+            "feedbacks": result.get("feedbacks", [])
         })
 

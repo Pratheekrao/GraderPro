@@ -4,6 +4,7 @@ import pickle
 import requests
 import numpy as np
 import PyPDF2
+import json
 from io import BytesIO
 from urllib.parse import urlparse, unquote
 
@@ -14,11 +15,13 @@ from django.views.decorators.http import require_POST
 from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 
-
+# Load environment variables
 load_dotenv()
 
+# Load embedding model
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
+# Utility to extract base filename
 def get_filename_from_path_or_url(path_or_url):
     parsed = urlparse(path_or_url)
     if parsed.scheme in ("http", "https"):
@@ -27,6 +30,7 @@ def get_filename_from_path_or_url(path_or_url):
         name = os.path.basename(path_or_url)
     return os.path.splitext(unquote(name))[0]
 
+# Extract text from each PDF page
 def load_pdf_from_stream(pdf_stream):
     pages = []
     try:
@@ -39,28 +43,36 @@ def load_pdf_from_stream(pdf_stream):
         raise ValueError(f"Error reading PDF: {e}")
     return pages
 
+# Embed text and save FAISS index + metadata
 def embed_pages_and_save(pages, base_name):
     texts = [p["text"] for p in pages]
     embeddings = embedding_model.encode(texts, show_progress_bar=True)
+    embeddings = np.array(embeddings).astype("float32")
+
     index = faiss.IndexFlatL2(embeddings.shape[1])
-    index.add(np.array(embeddings))
+    index.add(embeddings)
 
-    pkl_path = f"{base_name}_faiss.pkl"
-    with open(pkl_path, "wb") as f:
-        pickle.dump({
-            "index": index,
-            "embeddings": embeddings,
-            "texts": texts,
-            "pages": pages
-        }, f)
-    return pkl_path
+    index_path = f"{base_name}_index.faiss"
+    meta_path = f"{base_name}_meta.pkl"
 
+    faiss.write_index(index, index_path)
+    with open(meta_path, "wb") as f:
+        pickle.dump({"texts": texts, "pages": pages}, f)
+
+    return index_path, meta_path
+
+# View: Create FAISS index from PDF
 @csrf_exempt
 @require_POST
 def ragify_pdf_view(request):
     try:
-        pdf_url = request.POST.get('pdf_url')
-        pdf_file = request.FILES.get('pdf_file')
+        if request.content_type == "application/json":
+            body = json.loads(request.body)
+            pdf_url = body.get("pdf_url")
+            pdf_file = None
+        else:
+            pdf_url = request.POST.get("pdf_url")
+            pdf_file = request.FILES.get("pdf_file")
 
         if not pdf_url and not pdf_file:
             return JsonResponse({"error": "Provide either 'pdf_url' or upload a 'pdf_file'."}, status=400)
@@ -75,46 +87,50 @@ def ragify_pdf_view(request):
             base_name = os.path.splitext(pdf_file.name)[0]
 
         pages = load_pdf_from_stream(pdf_stream)
-        pkl_path = embed_pages_and_save(pages, base_name)
+        index_path, meta_path = embed_pages_and_save(pages, base_name)
 
-        return JsonResponse({"status": "success", "message": f"FAISS index saved as {pkl_path}"})
+        return JsonResponse({
+            "status": "success",
+            "index_file": index_path,
+            "meta_file": meta_path
+        })
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
-
-
-
+# View: Query FAISS index
 @csrf_exempt
 @require_POST
 def similarity_search_view(request):
     try:
-        # Get query and pkl filename from POST request
-        query = request.POST.get('query')
-        pkl_file = request.POST.get('pkl_file')  # Example: 'Computer_Networks_faiss.pkl'
+        if request.content_type == "application/json":
+            body = json.loads(request.body)
+            query = body.get("query")
+            index_file = body.get("index_file")
+            meta_file = body.get("meta_file")
+        else:
+            query = request.POST.get("query")
+            index_file = request.POST.get("index_file")
+            meta_file = request.POST.get("meta_file")
 
-        if not query or not pkl_file:
-            return JsonResponse({"error": "Both 'query' and 'pkl_file' are required."}, status=400)
+        if not query or not index_file or not meta_file:
+            return JsonResponse({
+                "error": "Fields 'query', 'index_file', and 'meta_file' are required."
+            }, status=400)
 
-        # Load FAISS index & data from pickle
-        if not os.path.exists(pkl_file):
-            return JsonResponse({"error": f"File '{pkl_file}' not found."}, status=404)
+        if not os.path.exists(index_file) or not os.path.exists(meta_file):
+            return JsonResponse({"error": "Index or metadata file not found."}, status=404)
 
-        with open(pkl_file, "rb") as f:
-            data = pickle.load(f)
+        index = faiss.read_index(index_file)
+        with open(meta_file, "rb") as f:
+            meta = pickle.load(f)
 
-        index = data['index']
-        texts = data['texts']
-        pages = data['pages']
-
-        # Embed the query
+        pages = meta["pages"]
         query_embedding = embedding_model.encode([query])
+        query_embedding = np.array(query_embedding).astype("float32")
 
-        # Search FAISS index
-        k = 5  # Top 5 results
-        D, I = index.search(np.array(query_embedding), k)
+        D, I = index.search(query_embedding, 5)
 
-        # Prepare results
         results = []
         for idx, distance in zip(I[0], D[0]):
             if idx != -1:
