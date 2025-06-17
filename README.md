@@ -52,6 +52,7 @@ Before installing GraderPro, ensure you have the following:
 3. Run the project:
    ```bash
    npm run dev
+   python manage.py runserver
    ```
 
 4. Open your browser and navigate to:
