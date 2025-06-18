@@ -57,7 +57,8 @@ Before installing GraderPro, ensure you have the following:
 
 4. Open your browser and navigate to:
    ```
-   http://localhost:3000
+   http://localhost:5173
+   http://localhost:5174
    ```
 
 ---
