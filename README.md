@@ -1,5 +1,6 @@
 # GraderPro
 
+This repository is an extension of the AutoGrader repository, with the added feature of diagram evaluation. For more information, check out [AutoGrader](https://github.com/PranavDarshan/AutoGrader) and the [research paper](https://ieeexplore.ieee.org/document/10817016) published in conjunction with it.
 GraderPro is a robust and efficient grading system designed to simplify the process of evaluating assignments, projects, and exams. With a focus on scalability and user-friendliness, GraderPro leverages modern technologies including TypeScript, Python, and web-based interfaces to provide an intuitive grading experience.
 
 ---
