@@ -92,17 +92,3 @@ We welcome contributions to GraderPro! To contribute:
 3. Commit your changes and submit a pull request.
 
 ---
-
-## License
-
-GraderPro is licensed under the [MIT License](LICENSE).
-
----
-
-## Contact
-
-For questions, feedback, or support, reach out to:
-
-- **Repository Owner**: [PranavDarshan](https://github.com/PranavDarshan)
-
----
